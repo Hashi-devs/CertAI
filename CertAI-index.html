@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CertAI — Bulk Certificate Slotting Utility</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        accent: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', '-apple-system', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                        cinzel: ['Cinzel', 'serif'],
+                        script: ['Great Vibes', 'cursive'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Great+Vibes&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,800;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- JSZip and FileSaver for Client-Side Packaging -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/file-saver/2.0.5/FileSaver.min.js"></script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Custom Fine Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+        /* Neura-Inspired Middle Arch Blue Gradient Backdrop */
+        .middle-arch-gradient-wrapper {
+            position: relative;
+            mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+            -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+        }
+
+        .concentric-circles {
+            background: radial-gradient(circle at 50% 100%, 
+                #93c5fd 0%, 
+                #60a5fa 15%, 
+                #3b82f6 30%, 
+                #2563eb 45%, 
+                #1d4ed8 60%, 
+                #1e40af 75%, 
+                transparent 90%);
+            opacity: 0.18;
+        }
+
+        .dark .concentric-circles {
+            opacity: 0.35;
+        }
+
+        /* Canvas Workspace Area */
+        .canvas-area {
+            position: relative;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .sketch-card {
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+        }
+        .dark .sketch-card {
+            border: 1px solid #262626;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans antialiased min-h-screen flex flex-col justify-between transition-colors duration-200 selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black">
+
+    <!-- UPLOAD SUCCESS TOAST NOTIFICATION -->
+    <div id="toast-notification" class="fixed top-6 right-6 z-50 transform -translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-neutral-900 dark:bg-white text-white dark:text-black px-4 py-3 rounded-2xl shadow-2xl border border-neutral-800 dark:border-neutral-200 flex items-center gap-3">
+            <div class="w-7 h-7 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-xs">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <div>
+                <p class="text-xs font-bold" id="toast-title">Design Uploaded!</p>
+                <p class="text-[10px] text-neutral-400 dark:text-neutral-600" id="toast-message">Certificate image loaded successfully.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FLOATING PILL HEADER -->
+    <header class="sticky top-4 z-40 max-w-5xl mx-auto px-4 w-full">
+        <div class="bg-white/90 dark:bg-neutral-900/90 backdrop-blur-md border border-neutral-200 dark:border-neutral-800 rounded-full px-4 py-2.5 shadow-lg flex items-center justify-between gap-4">
+            
+            <!-- Sketch Logo -->
+            <a href="#" class="flex items-center gap-2.5 group pl-1">
+                <div class="w-8 h-6 rounded border-2 border-black dark:border-white relative flex items-center justify-center p-0.5 group-hover:scale-105 transition-transform">
+                    <div class="w-full h-full border border-black/30 dark:border-white/30"></div>
+                    <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-white dark:bg-neutral-900 border-2 border-black dark:border-white flex items-center justify-center">
+                        <div class="w-1 h-1 rounded-full bg-black dark:bg-white"></div>
+                        <div class="absolute -bottom-1 -left-0.5 w-0.5 h-1.5 bg-black dark:bg-white rotate-12"></div>
+                        <div class="absolute -bottom-1 -right-0.5 w-0.5 h-1.5 bg-black dark:bg-white -rotate-12"></div>
+                    </div>
+                </div>
+                <span class="text-lg font-black tracking-tight text-black dark:text-white font-sans">
+                    CertAI
+                </span>
+            </a>
+
+            <!-- Pill Navigation Capsule -->
+            <nav class="hidden md:flex items-center gap-1 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                <a href="#overview" class="px-3.5 py-1.5 rounded-full hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">Home</a>
+                <a href="#studio" class="px-3.5 py-1.5 rounded-full hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">Studio Utility</a>
+                <a href="#integrations" class="px-3.5 py-1.5 rounded-full hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">Integrations</a>
+                <a href="#faq" class="px-3.5 py-1.5 rounded-full hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">FAQ</a>
+            </nav>
+
+            <!-- Theme Switcher & Donate CTA -->
+            <div class="flex items-center gap-2">
+                <button onclick="toggleTheme()" id="theme-btn" title="Toggle Light/Dark Theme" class="w-8 h-8 rounded-full border border-neutral-300 dark:border-neutral-700 flex items-center justify-center text-black dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
+                    <i class="fa-solid fa-moon text-xs dark:hidden"></i>
+                    <i class="fa-solid fa-sun text-xs hidden dark:block"></i>
+                </button>
+
+                <!-- DONATE BUTTON IN HEADER -->
+                <button onclick="openDonateModal()" class="inline-flex items-center gap-1.5 bg-black dark:bg-white text-white dark:text-black font-bold text-xs px-4 py-2 rounded-full transition shadow-md hover:scale-105 active:scale-95">
+                    <i class="fa-solid fa-heart text-red-500 text-xs"></i>
+                    <span>Donate</span>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- HERO SECTION WITH MIDDLE ARCH BLUE GRADIENT BACKDROP -->
+    <section id="overview" class="relative py-16 md:py-24 overflow-hidden">
+        
+        <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[480px] pointer-events-none middle-arch-gradient-wrapper flex items-center justify-center">
+            <div class="w-[800px] h-[800px] rounded-full concentric-circles"></div>
+        </div>
+
+        <div class="max-w-4xl mx-auto px-4 text-center relative z-10">
+            
+            <div class="flex items-center justify-center gap-3 md:gap-4 mb-8 opacity-40 hover:opacity-80 transition-opacity">
+                <div class="w-9 h-9 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm flex items-center justify-center text-emerald-600 text-base"><i class="fa-solid fa-file-excel"></i></div>
+                <div class="w-9 h-9 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm flex items-center justify-center text-purple-600 text-base"><i class="fa-solid fa-square-poll-vertical"></i></div>
+                <div class="w-9 h-9 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm flex items-center justify-center text-blue-500 text-base"><i class="fa-solid fa-image"></i></div>
+                <div class="w-9 h-9 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm flex items-center justify-center text-amber-500 text-base"><i class="fa-solid fa-file-zipper"></i></div>
+                <div class="w-9 h-9 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm flex items-center justify-center text-indigo-500 text-base"><i class="fa-solid fa-graduation-cap"></i></div>
+            </div>
+
+            <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-neutral-900 dark:text-white mb-6 leading-[1.15]">
+                Certificates made easy.<br/>
+                <span class="text-accent-600 dark:text-accent-400 font-serif italic">Zipped in seconds.</span>
+            </h1>
+
+            <p class="max-w-2xl mx-auto text-base sm:text-lg text-neutral-600 dark:text-neutral-400 font-normal leading-relaxed mb-10">
+                Upload your blank certificate design image, paste all recipient names in one go, position the text visually, and export high-resolution certificates in a single ZIP file.
+            </p>
+
+            <div class="flex flex-row items-center justify-center gap-3">
+                <a href="#studio" class="inline-flex items-center justify-center bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-black font-extrabold text-sm px-7 py-3.5 rounded-full transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+                    <span>Try now</span>
+                </a>
+                
+                <a href="#faq" class="inline-flex items-center justify-center bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-900 dark:text-neutral-100 font-bold text-sm px-6 py-3.5 rounded-full transition-all border border-neutral-200 dark:border-neutral-700">
+                    <span>How to use</span>
+                </a>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- LOGO TICKER BANNER -->
+    <section class="py-8 bg-neutral-50/80 dark:bg-neutral-900/40 border-y border-neutral-200 dark:border-neutral-800">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-[11px] font-bold tracking-widest text-neutral-400 dark:text-neutral-500 uppercase mb-5">
+                TRUSTED BY 2,000+ ORGANIZATIONS, BOOTCAMPS & COMMUNITY LEADS
+            </p>
+
+            <div class="flex flex-wrap items-center justify-center gap-8 md:gap-14 text-xs sm:text-sm font-bold text-neutral-600 dark:text-neutral-400">
+                <div class="flex items-center gap-2"><i class="fa-brands fa-google text-accent-600"></i> GDG Community</div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-code text-blue-500"></i> DevTown</div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-graduation-cap text-indigo-500"></i> Tech Bootcamps</div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-building"></i> Corporate HR</div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-award text-accent-600"></i> Event Leads</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MAIN STUDIO WORKSPACE -->
+    <section id="studio" class="py-14 bg-white dark:bg-neutral-950">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div class="mb-8 pb-6 border-b border-neutral-200 dark:border-neutral-800">
+                <h2 class="text-2xl sm:text-3xl font-black text-neutral-900 dark:text-white">Certificate Studio</h2>
+                <p class="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-1">Upload your certificate image, paste recipient names, fine-tune font placement, and export a ZIP.</p>
+            </div>
+
+            <!-- Workspace Setup -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                <!-- LEFT CONTROLS (5 Cols) -->
+                <div class="lg:col-span-5 space-y-6">
+                    
+                    <!-- STEP 1: UPLOAD CERTIFICATE IMAGE -->
+                    <div class="sketch-card bg-neutral-50/50 dark:bg-neutral-900/50 p-6 rounded-2xl">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-xs font-black text-neutral-900 dark:text-white uppercase tracking-wider">
+                                1. Upload Certificate Image
+                            </h3>
+                            <span class="text-[10px] font-mono text-neutral-400">PNG / JPG / WEBP</span>
+                        </div>
+
+                        <label class="block border-2 border-dashed border-neutral-300 dark:border-neutral-700 hover:border-accent-600 dark:hover:border-accent-500 bg-white dark:bg-neutral-950 rounded-xl p-5 text-center cursor-pointer transition group">
+                            <input type="file" id="cert-file-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                            <i class="fa-solid fa-cloud-arrow-up text-2xl text-neutral-400 group-hover:text-accent-600 mb-2 transition"></i>
+                            <div class="text-xs font-bold text-neutral-900 dark:text-white">Upload Certificate Image File</div>
+                            <div class="text-[10px] text-neutral-500 mt-0.5">Click or drag your blank certificate template here</div>
+                        </label>
+                    </div>
+
+                    <!-- STEP 2: PASTE RECIPIENT NAMES -->
+                    <div class="sketch-card bg-neutral-50/50 dark:bg-neutral-900/50 p-6 rounded-2xl">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-xs font-black text-neutral-900 dark:text-white uppercase tracking-wider">
+                                2. Recipient Names List
+                            </h3>
+                            <span id="name-count-pill" class="px-2.5 py-0.5 bg-accent-600 text-white text-[10px] font-bold rounded-full">
+                                4 Names
+                            </span>
+                        </div>
+
+                        <textarea id="names-text-area" rows="5" oninput="updateNamesList()" placeholder="Paste list of names (one per line)...&#10;Alexander Bartholomew&#10;Chidubem Okonkwo&#10;Sarah Jenkins&#10;Michael Chen" class="w-full bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl p-3 text-xs text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:border-accent-600 font-mono leading-relaxed"></textarea>
+                        
+                        <div class="flex items-center justify-between mt-2">
+                            <label class="cursor-pointer text-[11px] font-bold text-accent-600 hover:underline flex items-center gap-1.5">
+                                <i class="fa-solid fa-file-csv"></i> Upload CSV / TXT
+                                <input type="file" accept=".csv,.txt" class="hidden" onchange="handleCSVUpload(event)">
+                            </label>
+                            <button onclick="resetWorkspace()" class="text-[10px] text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition">Clear Text</button>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: AUTO FIT, TYPOGRAPHY & SKETCH-ACCURATE FONT UPLOAD BUTTON -->
+                    <div class="sketch-card bg-neutral-50/50 dark:bg-neutral-900/50 p-6 rounded-2xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xs font-black text-neutral-900 dark:text-white uppercase tracking-wider">
+                                3. Position & Typography
+                            </h3>
+                            <span class="text-[10px] text-neutral-400 font-mono">Fine-tune slot</span>
+                        </div>
+
+                        <div class="space-y-4">
+                            
+                            <!-- Smart Auto-Fit Line Space Option (Default On) -->
+                            <div class="p-3 bg-white dark:bg-neutral-950 rounded-xl border border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-bold text-neutral-900 dark:text-white flex items-center gap-1.5">
+                                        <i class="fa-solid fa-wand-magic-sparkles text-accent-600"></i> Auto-Fit Line Space
+                                    </div>
+                                    <p class="text-[10px] text-neutral-500" id="autofit-status-sub">Auto-scales text size to keep names inside margins</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="auto-fit-toggle" checked onchange="toggleAutoFit(this.checked)" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-neutral-300 dark:bg-neutral-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent-600"></div>
+                                </label>
+                            </div>
+
+                            <!-- Font Selection dropdown + Square Upload button beside it (Sketch f9ba3a3f) -->
+                            <div>
+                                <label class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Font Style & Custom Upload</label>
+                                
+                                <div class="flex items-center gap-2">
+                                    <select id="font-family-select" onchange="updateTextStyle('fontFamily', this.value)" class="flex-1 bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-xl p-2.5 text-xs text-neutral-900 dark:text-white focus:outline-none">
+                                        <option value="Plus Jakarta Sans" selected>Plus Jakarta Sans (Sans Serif)</option>
+                                        <option value="Playfair Display">Playfair Display (Serif)</option>
+                                        <option value="Cinzel">Cinzel (Formal Classic)</option>
+                                        <option value="Great Vibes">Great Vibes (Calligraphy Script)</option>
+                                        <option value="Inter">Inter (Minimalist)</option>
+                                        <option value="JetBrains Mono">JetBrains Mono (Technical)</option>
+                                    </select>
+
+                                    <!-- Square Upload Button with Upward Arrow (Matching Sketch f9ba3a3f) -->
+                                    <label class="w-10 h-10 rounded-xl bg-white dark:bg-neutral-950 hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 flex items-center justify-center cursor-pointer transition text-black dark:text-white shrink-0 shadow-sm" title="Upload Custom Font (.ttf / .otf)">
+                                        <i class="fa-solid fa-arrow-up text-sm"></i>
+                                        <input type="file" accept=".ttf,.otf,.woff,.woff2" class="hidden" onchange="handleCustomFontUpload(event)">
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Font Size (Max 500px Limit) & Color -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <div class="flex justify-between text-[11px] font-bold text-neutral-700 dark:text-neutral-300 mb-1">
+                                        <span>Base Size</span>
+                                        <span id="size-indicator" class="font-mono text-accent-600 font-bold">48px</span>
+                                    </div>
+                                    <input type="range" id="size-slider" min="10" max="500" value="48" oninput="updateTextStyle('fontSize', parseInt(this.value))" class="w-full accent-accent-600 cursor-pointer">
+                                </div>
+                                <div>
+                                    <label class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Color</label>
+                                    <div class="flex items-center gap-2">
+                                        <input type="color" id="color-picker" value="#000000" onchange="updateTextStyle('color', this.value)" class="w-8 h-8 rounded border border-neutral-300 dark:border-neutral-700 bg-transparent cursor-pointer">
+                                        <input type="text" id="color-hex-text" value="#000000" oninput="updateTextStyle('color', this.value)" class="w-full bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded p-1.5 text-xs text-neutral-900 dark:text-white uppercase font-mono">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Weight & Alignment with Working Indicator Highlight -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Weight</label>
+                                    <select id="weight-select" onchange="updateTextStyle('fontWeight', this.value)" class="w-full bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 rounded-lg p-2 text-xs text-neutral-900 dark:text-white focus:outline-none">
+                                        <option value="normal">Normal</option>
+                                        <option value="bold" selected>Bold</option>
+                                        <option value="900">Black</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 block mb-1">Alignment</label>
+                                    <div class="flex items-center gap-1 bg-white dark:bg-neutral-950 p-1 rounded-lg border border-neutral-300 dark:border-neutral-700">
+                                        <button id="align-left-btn" onclick="updateTextStyle('align', 'left')" class="flex-1 py-1 text-center text-xs rounded transition"><i class="fa-solid fa-align-left"></i></button>
+                                        <button id="align-center-btn" onclick="updateTextStyle('align', 'center')" class="flex-1 py-1 text-center text-xs rounded transition"><i class="fa-solid fa-align-center"></i></button>
+                                        <button id="align-right-btn" onclick="updateTextStyle('align', 'right')" class="flex-1 py-1 text-center text-xs rounded transition"><i class="fa-solid fa-align-right"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- X / Y Position Sliders -->
+                            <div class="pt-2 border-t border-neutral-200 dark:border-neutral-800 space-y-3">
+                                <div>
+                                    <div class="flex justify-between text-[10px] font-mono text-neutral-500 mb-1">
+                                        <span>Horizontal Position (X)</span>
+                                        <span id="x-indicator">50%</span>
+                                    </div>
+                                    <input type="range" id="x-slider" min="0" max="100" value="50" oninput="updateTextStyle('xPct', parseFloat(this.value))" class="w-full accent-accent-600 cursor-pointer">
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-[10px] font-mono text-neutral-500 mb-1">
+                                        <span>Vertical Position (Y)</span>
+                                        <span id="y-indicator">50%</span>
+                                    </div>
+                                    <input type="range" id="y-slider" min="0" max="100" value="50" oninput="updateTextStyle('yPct', parseFloat(this.value))" class="w-full accent-accent-600 cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- RIGHT PREVIEW CANVAS & EXPORT OPTIONS (7 Cols) -->
+                <div class="lg:col-span-7">
+                    
+                    <div class="sketch-card bg-neutral-50/50 dark:bg-neutral-900/50 p-6 rounded-2xl shadow-xl sticky top-24 space-y-4">
+                        
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-black text-neutral-900 dark:text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-crosshairs text-accent-600"></i>
+                                    Live Preview & Fine-Tuner
+                                </h3>
+                                <p class="text-[11px] text-neutral-500 dark:text-neutral-400">Position text visually on the certificate canvas.</p>
+                            </div>
+
+                            <!-- Applicant Candidate Scrubber -->
+                            <div class="flex items-center gap-2 bg-white dark:bg-neutral-950 p-1.5 rounded-xl border border-neutral-300 dark:border-neutral-700">
+                                <button onclick="stepCandidate(-1)" class="w-7 h-7 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 text-neutral-900 dark:text-white flex items-center justify-center transition">
+                                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                                </button>
+                                <span id="candidate-counter" class="text-xs font-mono font-bold px-2">
+                                    1 / 4
+                                </span>
+                                <button onclick="stepCandidate(1)" class="w-7 h-7 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 text-neutral-900 dark:text-white flex items-center justify-center transition">
+                                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Canvas Workspace Frame -->
+                        <div class="canvas-area bg-white dark:bg-neutral-950 rounded-xl overflow-hidden border border-neutral-300 dark:border-neutral-800 shadow-md flex items-center justify-center min-h-[380px] p-2 relative cursor-crosshair" id="canvas-wrapper">
+                            <canvas id="cert-canvas" class="max-w-full h-auto rounded shadow-sm"></canvas>
+
+                            <!-- Lock Indicator Badge when Auto-Fit is active -->
+                            <div id="drag-status-badge" class="absolute bottom-3 right-3 pointer-events-none bg-black/80 dark:bg-white/90 text-white dark:text-black px-3 py-1 rounded-md text-[10px] font-mono font-bold shadow flex items-center gap-1.5">
+                                <i class="fa-solid fa-lock text-amber-400 dark:text-amber-600"></i>
+                                Auto-Fit Active (Drag Locked)
+                            </div>
+                        </div>
+
+                        <!-- EXPORT FORMAT SELECTOR & ACTION BAR -->
+                        <div class="pt-3 border-t border-neutral-200 dark:border-neutral-800 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300">Image Export Format</label>
+                                <div class="flex items-center gap-1 bg-white dark:bg-neutral-950 p-1 rounded-lg border border-neutral-300 dark:border-neutral-700">
+                                    <button onclick="setExportFormat('png')" id="fmt-png" class="px-3 py-1 text-xs font-bold bg-black dark:bg-white text-white dark:text-black rounded transition">PNG</button>
+                                    <button onclick="setExportFormat('jpeg')" id="fmt-jpeg" class="px-3 py-1 text-xs font-semibold text-neutral-500 hover:text-black dark:hover:text-white rounded transition">JPEG</button>
+                                    <button onclick="setExportFormat('webp')" id="fmt-webp" class="px-3 py-1 text-xs font-semibold text-neutral-500 hover:text-black dark:hover:text-white rounded transition">WEBP</button>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                                <button onclick="downloadSinglePNG()" class="w-full sm:w-auto px-4 py-2.5 bg-white dark:bg-neutral-950 hover:bg-neutral-100 text-neutral-900 dark:text-white text-xs font-bold rounded-xl border border-neutral-300 dark:border-neutral-700 transition flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-download"></i>
+                                    Download Sample Image
+                                </button>
+
+                                <button onclick="exportZipArchive()" class="w-full sm:w-auto px-8 py-3 bg-accent-600 hover:bg-accent-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-file-zipper"></i>
+                                    <span>Export All to ZIP</span>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- INTEGRATIONS SECTION -->
+    <section id="integrations" class="py-20 bg-neutral-50 dark:bg-neutral-950 border-t border-neutral-200 dark:border-neutral-800 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div class="text-center max-w-3xl mx-auto mb-14">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-4 shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                    <span>Workflow Integrations</span>
+                </div>
+                
+                <h2 class="text-3xl sm:text-4xl font-black text-neutral-900 dark:text-white tracking-tight mb-4">
+                    Connect credentials with the tools you use every day
+                </h2>
+                
+                <p class="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                    Streamline your distribution pipeline. Easily pull recipient rosters from spreadsheets and push your generated ZIP certificates directly to form responses, LMS portals, or live event webhooks.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                <!-- 1. Google Sheets -->
+                <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm hover:shadow-md hover:border-emerald-500/50 transition-all duration-300 group">
+                    <div class="h-20 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-4 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800">
+                        <div class="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl font-bold shadow-sm group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-file-excel"></i>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">Roster Import</span>
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-base font-bold text-neutral-900 dark:text-white mb-1.5">Google Sheets</h3>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                            Export recipient rows directly to CSV format. CertAI automatically parses candidate columns with zero manual formatting needed.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 2. Google Forms -->
+                <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm hover:shadow-md hover:border-purple-500/50 transition-all duration-300 group">
+                    <div class="h-20 bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-transparent p-4 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800">
+                        <div class="w-11 h-11 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl font-bold shadow-sm group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-square-poll-vertical"></i>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-md bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 uppercase tracking-wider">Bulk Upload</span>
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-base font-bold text-neutral-900 dark:text-white mb-1.5">Google Forms</h3>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                            Match form submission responses with generated PNG certificates to quickly fulfill post-event completion requests.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 3. Zoom Events -->
+                <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm hover:shadow-md hover:border-blue-500/50 transition-all duration-300 group">
+                    <div class="h-20 bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent p-4 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800">
+                        <div class="w-11 h-11 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl font-bold shadow-sm group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-video"></i>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 uppercase tracking-wider">Webinar Badges</span>
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-base font-bold text-neutral-900 dark:text-white mb-1.5">Zoom Events</h3>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                            Convert webinar attendee lists into batch certificates in under a minute right after your live presentation finishes.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 4. MS Excel -->
+                <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm hover:shadow-md hover:border-teal-500/50 transition-all duration-300 group">
+                    <div class="h-20 bg-gradient-to-r from-teal-500/10 via-teal-500/5 to-transparent p-4 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800">
+                        <div class="w-11 h-11 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-600 dark:text-teal-400 flex items-center justify-center text-xl font-bold shadow-sm group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-table"></i>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-md bg-teal-100 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 uppercase tracking-wider">Spreadsheet Sync</span>
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-base font-bold text-neutral-900 dark:text-white mb-1.5">Microsoft Excel</h3>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                            Paste full column names directly from `.xlsx` workbooks into the Studio text area with line-break support.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 5. Canvas LMS -->
+                <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm hover:shadow-md hover:border-amber-500/50 transition-all duration-300 group">
+                    <div class="h-20 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-4 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800">
+                        <div class="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl font-bold shadow-sm group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 uppercase tracking-wider">Bootcamp Diplomas</span>
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-base font-bold text-neutral-900 dark:text-white mb-1.5">Canvas LMS / Moodle</h3>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                            Generate official course completion awards for cohort graduations and bundle them into organized ZIP packages.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 6. Make / Zapier -->
+                <div class="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm hover:shadow-md hover:border-indigo-500/50 transition-all duration-300 group">
+                    <div class="h-20 bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent p-4 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800">
+                        <div class="w-11 h-11 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl font-bold shadow-sm group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-diagram-project"></i>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">Automations</span>
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-base font-bold text-neutral-900 dark:text-white mb-1.5">Make & Zapier</h3>
+                        <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                            Connect local batch outputs with email automation flows to distribute credentials directly to applicant inboxes.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ SECTION -->
+    <section id="faq" class="py-16 bg-white dark:bg-neutral-950 border-t border-neutral-200 dark:border-neutral-800">
+        <div class="max-w-3xl mx-auto px-4">
+            <div class="text-center mb-10">
+                <h2 class="text-2xl font-black text-neutral-900 dark:text-white">Still got questions? We've got answers</h2>
+                <p class="text-neutral-500 dark:text-neutral-400 text-xs mt-1">Everything you need to know about bulk certificate generation with CertAI.</p>
+            </div>
+
+            <div class="space-y-3">
+                <div class="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 cursor-pointer" onclick="toggleFaqAccordion(this)">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-neutral-900 dark:text-white">Can I generate certificates in bulk (mass-generate)?</h3>
+                        <i class="fa-solid fa-chevron-down text-xs text-neutral-400 transition-transform"></i>
+                    </div>
+                    <div class="faq-content hidden mt-2.5 pt-2.5 border-t border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                        Yes! Upload your certificate image design, paste or upload your list of recipient names, fine-tune the text position, and download all generated certificates in a single ZIP file.
+                    </div>
+                </div>
+
+                <div class="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 cursor-pointer" onclick="toggleFaqAccordion(this)">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-neutral-900 dark:text-white">Are my certificate files or recipient names uploaded to a server?</h3>
+                        <i class="fa-solid fa-chevron-down text-xs text-neutral-400 transition-transform"></i>
+                    </div>
+                    <div class="faq-content hidden mt-2.5 pt-2.5 border-t border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                        No. CertAI runs completely inside your browser locally. No certificate template or applicant names are ever uploaded to an external server, keeping all data 100% private.
+                    </div>
+                </div>
+
+                <div class="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 cursor-pointer" onclick="toggleFaqAccordion(this)">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-neutral-900 dark:text-white">How does the Auto-Fit Line Space work?</h3>
+                        <i class="fa-solid fa-chevron-down text-xs text-neutral-400 transition-transform"></i>
+                    </div>
+                    <div class="faq-content hidden mt-2.5 pt-2.5 border-t border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                        When enabled, CertAI automatically calculates font width and scales long candidate names down so they fit inside your certificate border margins cleanly. Switch Auto-Fit off if you want to unlock free drag-and-drop repositioning.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-neutral-100 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 py-12 border-t border-neutral-200 dark:border-neutral-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-neutral-200 dark:border-neutral-800">
+                
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-6 rounded border-2 border-black dark:border-white relative flex items-center justify-center p-0.5">
+                        <div class="w-full h-full border border-black/30 dark:border-white/30"></div>
+                        <div class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-white dark:bg-neutral-900 border border-black dark:border-white"></div>
+                    </div>
+                    <span class="text-lg font-black text-black dark:text-white">CertAI</span>
+                </div>
+
+                <div class="text-xs font-semibold text-neutral-500">
+                    Founded by Dry Codes © 2026
+                </div>
+
+                <div class="flex items-center gap-4 text-xs font-semibold">
+                    <a href="#overview" class="hover:text-black dark:hover:text-white transition">Home</a>
+                    <a href="#studio" class="hover:text-black dark:hover:text-white transition">Studio</a>
+                    <a href="#faq" class="hover:text-black dark:hover:text-white transition">Privacy</a>
+                </div>
+            </div>
+
+            <div class="pt-6 text-center text-[11px] text-neutral-400">
+                CertAI • Client-Side Local Browser Processing • Dry Codes © 2026
+            </div>
+        </div>
+    </footer>
+
+    <!-- DONATE MODAL -->
+    <div id="donate-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5 shadow-2xl relative">
+            <button onclick="closeDonateModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 hover:text-black dark:hover:text-white flex items-center justify-center transition">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+
+            <div class="w-14 h-14 mx-auto rounded-full bg-red-100 dark:bg-red-950/80 text-red-500 flex items-center justify-center text-2xl shadow-inner">
+                <i class="fa-solid fa-heart"></i>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-black text-neutral-900 dark:text-white">Support CertAI</h3>
+                <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Help keep CertAI free, serverless, and open for community organizers everywhere.</p>
+            </div>
+
+            <div class="p-4 bg-neutral-50 dark:bg-neutral-950 rounded-2xl border border-neutral-200 dark:border-neutral-800 space-y-2 text-left">
+                <div class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">Founder / Developer</div>
+                <div class="text-xs font-bold text-black dark:text-white">Dry Codes © 2026</div>
+                <p class="text-[10px] text-neutral-400">Thank you for supporting independent open tools!</p>
+            </div>
+
+            <button onclick="closeDonateModal()" class="w-full py-3 bg-black dark:bg-white text-white dark:text-black font-extrabold text-xs rounded-xl shadow-md transition">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- PROGRESS MODAL -->
+    <div id="progress-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-neutral-900 border-2 border-black dark:border-white rounded-2xl p-6 max-w-xs w-full text-center space-y-4 shadow-2xl">
+            <div class="w-12 h-12 mx-auto rounded-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 flex items-center justify-center text-black dark:text-white text-xl animate-spin">
+                <i class="fa-solid fa-spinner"></i>
+            </div>
+            <div>
+                <h4 class="text-sm font-black text-neutral-900 dark:text-white mb-1">Generating Certificates</h4>
+                <p id="progress-text" class="text-xs text-neutral-500 font-mono">Processing 1 / 4...</p>
+            </div>
+            <div class="w-full bg-neutral-200 dark:bg-neutral-800 h-2 rounded-full overflow-hidden border border-neutral-300 dark:border-neutral-700">
+                <div id="progress-fill" class="bg-black dark:bg-white h-full w-0 transition-all duration-150"></div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- JAVASCRIPT ENGINE -->
+    <script>
+        // State
+        let templateImage = new Image();
+        let names = [
+            "Alexander Bartholomew",
+            "Chidubem Okonkwo",
+            "Sarah Jenkins",
+            "Michael Chen"
+        ];
+        let currentIdx = 0;
+        let isDragging = false;
+        let autoFitEnabled = true;
+        let exportFormat = 'png'; // 'png', 'jpeg', 'webp'
+
+        let style = {
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 48,
+            color: '#000000',
+            fontWeight: 'bold',
+            align: 'center',
+            xPct: 50,
+            yPct: 50
+        };
+
+        let canvas, ctx;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            canvas = document.getElementById('cert-canvas');
+            ctx = canvas.getContext('2d');
+
+            setupDragAndDrop();
+            useDemoDesign();
+            updateAlignUI(style.align);
+        });
+
+        // Toast Notification Trigger
+        function showToast(title, message) {
+            const toast = document.getElementById('toast-notification');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-message').innerText = message;
+
+            toast.classList.remove('-translate-y-24', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('-translate-y-24', 'opacity-0');
+            }, 3000);
+        }
+
+        // Donate Modal Handlers
+        function openDonateModal() {
+            document.getElementById('donate-modal').classList.remove('hidden');
+        }
+
+        function closeDonateModal() {
+            document.getElementById('donate-modal').classList.add('hidden');
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        function toggleAutoFit(val) {
+            autoFitEnabled = val;
+            const badge = document.getElementById('drag-status-badge');
+            const sub = document.getElementById('autofit-status-sub');
+
+            if (val) {
+                badge.innerHTML = `<i class="fa-solid fa-lock text-amber-400 dark:text-amber-600"></i> Auto-Fit Active (Drag Locked)`;
+                sub.innerText = "Auto-scales text size to keep names inside margins";
+            } else {
+                badge.innerHTML = `<i class="fa-solid fa-hand-pointer text-emerald-400"></i> Manual Drag Enabled`;
+                sub.innerText = "Manual drag positioning unlocked";
+            }
+
+            renderCanvas();
+        }
+
+        function setExportFormat(fmt) {
+            exportFormat = fmt;
+            ['png', 'jpeg', 'webp'].forEach(f => {
+                const btn = document.getElementById(`fmt-${f}`);
+                if (f === fmt) {
+                    btn.className = "px-3 py-1 text-xs font-bold bg-black dark:bg-white text-white dark:text-black rounded transition";
+                } else {
+                    btn.className = "px-3 py-1 text-xs font-semibold text-neutral-500 hover:text-black dark:hover:text-white rounded transition";
+                }
+            });
+        }
+
+        async function handleCustomFontUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const fontName = 'CustomFont_' + Math.random().toString(36).substr(2, 6);
+            
+            try {
+                const buffer = await file.arrayBuffer();
+                const customFont = new FontFace(fontName, buffer);
+                await customFont.load();
+                document.fonts.add(customFont);
+
+                const select = document.getElementById('font-family-select');
+                const opt = document.createElement('option');
+                opt.value = fontName;
+                opt.innerText = `Uploaded: ${file.name}`;
+                opt.selected = true;
+                select.prepend(opt);
+
+                updateTextStyle('fontFamily', fontName);
+                showToast("Font Uploaded Successfully", `Custom font "${file.name}" ready to use.`);
+            } catch (err) {
+                console.error('Font load error:', err);
+                alert('Could not load font file. Please ensure it is a valid .ttf or .otf file.');
+            }
+        }
+
+        function useDemoDesign() {
+            const sample = document.createElement('canvas');
+            sample.width = 1600;
+            sample.height = 1000;
+            const sCtx = sample.getContext('2d');
+
+            sCtx.fillStyle = '#ffffff';
+            sCtx.fillRect(0, 0, 1600, 1000);
+
+            sCtx.strokeStyle = '#000000';
+            sCtx.lineWidth = 8;
+            sCtx.strokeRect(50, 50, 1500, 900);
+
+            sCtx.strokeStyle = '#94a3b8';
+            sCtx.lineWidth = 1.5;
+            sCtx.strokeRect(65, 65, 1470, 870);
+
+            sCtx.fillStyle = '#000000';
+            sCtx.font = 'bold 36px "Playfair Display", serif';
+            sCtx.textAlign = 'center';
+            sCtx.fillText('CERTIFICATE OF ACHIEVEMENT', 800, 200);
+
+            sCtx.fillStyle = '#64748b';
+            sCtx.font = '18px "Plus Jakarta Sans", sans-serif';
+            sCtx.fillText('THIS ACKNOWLEDGES THAT THE RECIPIENT HAS COMPLETED THE PROGRAM', 800, 320);
+
+            templateImage.onload = () => { renderCanvas(); };
+            templateImage.src = sample.toDataURL('image/png');
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                templateImage.onload = () => { 
+                    renderCanvas(); 
+                    showToast("Design Uploaded Successfully!", "Taking you down to the studio workspace...");
+                    
+                    setTimeout(() => {
+                        document.getElementById('studio').scrollIntoView({ behavior: 'smooth' });
+                    }, 200);
+                };
+                templateImage.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateNamesList() {
+            const text = document.getElementById('names-text-area').value;
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            if (lines.length > 0) {
+                names = lines;
+            } else {
+                names = ["Sample Recipient Name"];
+            }
+
+            currentIdx = 0;
+            document.getElementById('name-count-pill').innerText = `${names.length} Name${names.length > 1 ? 's' : ''}`;
+            renderCanvas();
+        }
+
+        function handleCSVUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const text = event.target.result;
+                const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length > 0) {
+                    document.getElementById('names-text-area').value = lines.join('\n');
+                    updateNamesList();
+                    showToast("Roster Imported", `Parsed ${lines.length} candidate names.`);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function stepCandidate(direction) {
+            if (direction === -1 && currentIdx > 0) {
+                currentIdx--;
+            } else if (direction === 1 && currentIdx < names.length - 1) {
+                currentIdx++;
+            }
+            renderCanvas();
+        }
+
+        // Render Canvas (Pure Certificate Output with NO Background Fill Overlay)
+        function renderCanvas(overrideText = null) {
+            if (!templateImage.width) return;
+
+            canvas.width = templateImage.width;
+            canvas.height = templateImage.height;
+
+            // Draw template design image directly onto clean canvas
+            ctx.drawImage(templateImage, 0, 0);
+
+            const activeName = overrideText || names[currentIdx] || "Alexander Bartholomew";
+            const x = (style.xPct / 100) * canvas.width;
+            const y = (style.yPct / 100) * canvas.height;
+
+            // Auto-Fit Calculation Logic
+            let computedFontSize = style.fontSize;
+            if (autoFitEnabled) {
+                const maxAvailableWidth = canvas.width * 0.82; // 82% margin safe-zone
+                ctx.font = `${style.fontWeight} ${computedFontSize}px "${style.fontFamily}", sans-serif`;
+                let metrics = ctx.measureText(activeName);
+
+                while (metrics.width > maxAvailableWidth && computedFontSize > 12) {
+                    computedFontSize -= 2;
+                    ctx.font = `${style.fontWeight} ${computedFontSize}px "${style.fontFamily}", sans-serif`;
+                    metrics = ctx.measureText(activeName);
+                }
+            }
+
+            ctx.save();
+            ctx.font = `${style.fontWeight} ${computedFontSize}px "${style.fontFamily}", sans-serif`;
+            ctx.fillStyle = style.color;
+            ctx.textAlign = style.align;
+            ctx.textBaseline = 'middle';
+
+            ctx.fillText(activeName, x, y);
+
+            // Bounding box outline during edit mode
+            if (!overrideText) {
+                const metrics = ctx.measureText(activeName);
+                const w = metrics.width + 20;
+                const h = computedFontSize + 10;
+
+                let startX = x - w / 2;
+                if (style.align === 'left') startX = x - 10;
+                if (style.align === 'right') startX = x - w + 10;
+
+                ctx.strokeStyle = '#2563eb';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 4]);
+                ctx.strokeRect(startX, y - h / 2, w, h);
+            }
+
+            ctx.restore();
+
+            document.getElementById('candidate-counter').innerText = `${currentIdx + 1} / ${names.length}`;
+        }
+
+        function updateTextStyle(param, val) {
+            style[param] = val;
+
+            if (param === 'fontSize') document.getElementById('size-indicator').innerText = `${val}px`;
+            if (param === 'color') {
+                document.getElementById('color-picker').value = val;
+                document.getElementById('color-hex-text').value = val;
+            }
+            if (param === 'xPct') document.getElementById('x-indicator').innerText = `${Math.round(val)}%`;
+            if (param === 'yPct') document.getElementById('y-indicator').innerText = `${Math.round(val)}%`;
+            if (param === 'align') updateAlignUI(val);
+
+            renderCanvas();
+        }
+
+        // Active Alignment Indicator Switcher Fix
+        function updateAlignUI(activeAlign) {
+            ['left', 'center', 'right'].forEach(a => {
+                const btn = document.getElementById(`align-${a}-btn`);
+                if (btn) {
+                    if (a === activeAlign) {
+                        btn.className = "flex-1 py-1 text-center text-xs bg-black dark:bg-white text-white dark:text-black rounded font-bold transition shadow-sm";
+                    } else {
+                        btn.className = "flex-1 py-1 text-center text-xs text-neutral-500 hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition";
+                    }
+                }
+            });
+        }
+
+        function setupDragAndDrop() {
+            const handlePointer = (e) => {
+                if (autoFitEnabled) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                const x = ((clientX - rect.left) / rect.width) * 100;
+                const y = ((clientY - rect.top) / rect.height) * 100;
+
+                if (x >= 0 && x <= 100 && y >= 0 && y <= 100) {
+                    style.xPct = x;
+                    style.yPct = y;
+
+                    document.getElementById('x-slider').value = Math.round(x);
+                    document.getElementById('y-slider').value = Math.round(y);
+                    document.getElementById('x-indicator').innerText = `${Math.round(x)}%`;
+                    document.getElementById('y-indicator').innerText = `${Math.round(y)}%`;
+
+                    renderCanvas();
+                }
+            };
+
+            canvas.addEventListener('mousedown', (e) => { isDragging = true; handlePointer(e); });
+            window.addEventListener('mousemove', (e) => { if (isDragging) handlePointer(e); });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+
+            canvas.addEventListener('touchstart', (e) => { isDragging = true; handlePointer(e); });
+            window.addEventListener('touchmove', (e) => { if (isDragging) handlePointer(e); });
+            window.addEventListener('touchend', () => { isDragging = false; });
+        }
+
+        function getMimeType() {
+            if (exportFormat === 'jpeg') return 'image/jpeg';
+            if (exportFormat === 'webp') return 'image/webp';
+            return 'image/png';
+        }
+
+        function downloadSinglePNG() {
+            const name = names[currentIdx] || 'Sample';
+            const ext = exportFormat;
+            const link = document.createElement('a');
+            link.download = `Certificate_${name.replace(/\s+/g, '_')}.${ext}`;
+            link.href = canvas.toDataURL(getMimeType(), 0.95);
+            link.click();
+        }
+
+        async function exportZipArchive() {
+            if (names.length === 0) return;
+
+            const modal = document.getElementById('progress-modal');
+            const status = document.getElementById('progress-text');
+            const bar = document.getElementById('progress-fill');
+
+            modal.classList.remove('hidden');
+
+            const zip = new JSZip();
+            const folder = zip.folder("Certificates");
+            const ext = exportFormat;
+            const mime = getMimeType();
+
+            for (let i = 0; i < names.length; i++) {
+                const name = names[i];
+                status.innerText = `Processing ${i + 1} of ${names.length}: ${name}`;
+                bar.style.width = `${Math.round(((i + 1) / names.length) * 100)}%`;
+
+                renderCanvas(name);
+
+                const dataUrl = canvas.toDataURL(mime, 0.95);
+                const base64Data = dataUrl.replace(/^data:image\/(png|jpeg|webp);base64,/, "");
+
+                folder.file(`Certificate_${name.replace(/[^a-zA-Z0-9]/g, "_")}.${ext}`, base64Data, {base64: true});
+
+                await new Promise(r => setTimeout(r, 30));
+            }
+
+            status.innerText = "Packing ZIP file...";
+
+            zip.generateAsync({type: "blob"}).then(function(content) {
+                saveAs(content, `CertAI_Certificates.zip`);
+                modal.classList.add('hidden');
+                renderCanvas();
+            });
+        }
+
+        function resetWorkspace() {
+            document.getElementById('names-text-area').value = "";
+            updateNamesList();
+            useDemoDesign();
+        }
+
+        function toggleFaqAccordion(el) {
+            const content = el.querySelector('.faq-content');
+            const icon = el.querySelector('i');
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        }
+    </script>
+</body>
+</html>
