@@ -688,10 +688,9 @@
                 <div id="progress-fill" class="bg-black dark:bg-white h-full w-0 transition-all duration-150"></div>
             </div>
         </div>
-    </div>
-
-
-    <!-- JAVASCRIPT ENGINE (ULTRA-FAST MOBILE & DESKTOP OPTIMIZED) -->
+    </div> 
+    
+    <!-- JAVASCRIPT ENGINE (HIGH-DPI / LOSSLESS RESOLUTION FIX) -->
     <script>
         // State
         let templateImage = new Image();
@@ -786,7 +785,7 @@
             const ySlider = document.getElementById('y-slider');
 
             if (positionLocked) {
-                badge.innerHTML = `<i class="fa-solid fa-lock text-amber-400 dark:text-amber-600"></i> Auto-Fit Active (Drag Locked)`;
+                badge.innerHTML = `<i class="fa-solid fa-lock text-amber-400 dark:text-amber-600"></i> Position Locked (Auto-Fit Active)`;
                 sub.innerText = "Auto-scales text size to keep names inside margins";
                 lockIcon.className = "fa-solid fa-lock text-amber-500";
                 lockText.innerText = "Locked";
@@ -847,29 +846,29 @@
 
         function useDemoDesign() {
             const sample = document.createElement('canvas');
-            sample.width = 1600;
-            sample.height = 1000;
+            sample.width = 2400; // High-res master dimensions
+            sample.height = 1500;
             const sCtx = sample.getContext('2d');
 
             sCtx.fillStyle = '#ffffff';
-            sCtx.fillRect(0, 0, 1600, 1000);
+            sCtx.fillRect(0, 0, 2400, 1500);
 
             sCtx.strokeStyle = '#000000';
-            sCtx.lineWidth = 8;
-            sCtx.strokeRect(50, 50, 1500, 900);
+            sCtx.lineWidth = 12;
+            sCtx.strokeRect(60, 60, 2280, 1380);
 
             sCtx.strokeStyle = '#94a3b8';
-            sCtx.lineWidth = 1.5;
-            sCtx.strokeRect(65, 65, 1470, 870);
+            sCtx.lineWidth = 2;
+            sCtx.strokeRect(85, 85, 2230, 1330);
 
             sCtx.fillStyle = '#000000';
-            sCtx.font = 'bold 36px "Playfair Display", serif';
+            sCtx.font = 'bold 54px "Playfair Display", serif';
             sCtx.textAlign = 'center';
-            sCtx.fillText('CERTIFICATE OF ACHIEVEMENT', 800, 200);
+            sCtx.fillText('CERTIFICATE OF ACHIEVEMENT', 1200, 300);
 
             sCtx.fillStyle = '#64748b';
-            sCtx.font = '18px "Plus Jakarta Sans", sans-serif';
-            sCtx.fillText('THIS ACKNOWLEDGES THAT THE RECIPIENT HAS COMPLETED THE PROGRAM', 800, 320);
+            sCtx.font = '28px "Plus Jakarta Sans", sans-serif';
+            sCtx.fillText('THIS ACKNOWLEDGES THAT THE RECIPIENT HAS COMPLETED THE PROGRAM', 1200, 480);
 
             templateImage.onload = () => { renderCanvas(); };
             templateImage.src = sample.toDataURL('image/png');
@@ -938,25 +937,38 @@
             renderCanvas();
         }
 
+        // ULTRA HIGH-DPI LOSSLESS RENDER ENGINE
         function renderCanvas(overrideText = null) {
             if (!templateImage.width) return;
 
-            canvas.width = templateImage.width;
-            canvas.height = templateImage.height;
+            // Preserve full natural template resolution
+            const masterW = templateImage.naturalWidth || templateImage.width;
+            const masterH = templateImage.naturalHeight || templateImage.height;
 
-            ctx.drawImage(templateImage, 0, 0);
+            canvas.width = masterW;
+            canvas.height = masterH;
+
+            // Maximize Rendering Sharpness
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // Draw template design at 1:1 original crisp resolution
+            ctx.drawImage(templateImage, 0, 0, masterW, masterH);
 
             const activeName = overrideText || names[currentIdx] || "Alexander Bartholomew";
-            const x = (style.xPct / 100) * canvas.width;
-            const y = (style.yPct / 100) * canvas.height;
+            const x = (style.xPct / 100) * masterW;
+            const y = (style.yPct / 100) * masterH;
 
-            let computedFontSize = style.fontSize;
+            // Scale Base Font Size relative to Master Canvas Resolution
+            const scaleFactor = masterW / 1200; // Baseline standard factor
+            let computedFontSize = style.fontSize * scaleFactor;
+
             if (autoFitEnabled) {
-                const maxAvailableWidth = canvas.width * 0.82;
+                const maxAvailableWidth = masterW * 0.82;
                 ctx.font = `${style.fontWeight} ${computedFontSize}px "${style.fontFamily}", sans-serif`;
                 let metrics = ctx.measureText(activeName);
 
-                while (metrics.width > maxAvailableWidth && computedFontSize > 12) {
+                while (metrics.width > maxAvailableWidth && computedFontSize > 16) {
                     computedFontSize -= 2;
                     ctx.font = `${style.fontWeight} ${computedFontSize}px "${style.fontFamily}", sans-serif`;
                     metrics = ctx.measureText(activeName);
@@ -971,18 +983,19 @@
 
             ctx.fillText(activeName, x, y);
 
+            // Bounding box outline during edit mode (Hidden on download exports)
             if (!overrideText) {
                 const metrics = ctx.measureText(activeName);
-                const w = metrics.width + 20;
-                const h = computedFontSize + 10;
+                const w = metrics.width + (30 * scaleFactor);
+                const h = computedFontSize + (15 * scaleFactor);
 
                 let startX = x - w / 2;
-                if (style.align === 'left') startX = x - 10;
-                if (style.align === 'right') startX = x - w + 10;
+                if (style.align === 'left') startX = x - (15 * scaleFactor);
+                if (style.align === 'right') startX = x - w + (15 * scaleFactor);
 
                 ctx.strokeStyle = '#2563eb';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 4]);
+                ctx.lineWidth = Math.max(2, 3 * scaleFactor);
+                ctx.setLineDash([8 * scaleFactor, 6 * scaleFactor]);
                 ctx.strokeRect(startX, y - h / 2, w, h);
             }
 
@@ -1061,13 +1074,27 @@
         function downloadSinglePNG() {
             const name = names[currentIdx] || 'Sample';
             const ext = exportFormat;
-            const link = document.createElement('a');
-            link.download = `Certificate_${name.replace(/\s+/g, '_')}.${ext}`;
-            link.href = canvas.toDataURL(getMimeType(), 0.95);
-            link.click();
+            
+            // Clean render without dashed boundary box
+            renderCanvas(name);
+
+            const mime = getMimeType();
+            
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = `Certificate_${name.replace(/\s+/g, '_')}.${ext}`;
+                link.href = url;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+                
+                renderCanvas(); // Restore edit outline
+            }, mime, 1.0); // 1.0 Maximum Quality Ratio
         }
 
-        // ULTRA-FAST ZIP EXPORTER (DIRECT BLOB GENERATION + NO FILE-SAVER HANGS)
+        // ULTRA-FAST & LOSSLESS HIGH-DPI ZIP EXPORTER
         async function exportZipArchive() {
             if (names.length === 0) return;
 
@@ -1084,23 +1111,22 @@
 
             for (let i = 0; i < names.length; i++) {
                 const name = names[i];
-                status.innerText = `Rendering ${i + 1} of ${names.length}: ${name}`;
+                status.innerText = `Rendering HD ${i + 1} of ${names.length}: ${name}`;
                 bar.style.width = `${Math.round(((i + 1) / names.length) * 100)}%`;
 
-                // Yield main thread to keep UI smooth and prevent browser freezing
                 await new Promise(r => setTimeout(r, 10));
 
+                // Lossless draw pass
                 renderCanvas(name);
 
-                // Asynchronous canvas to blob conversion
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, mime, 0.95));
+                // Convert to full 1.0 quality blob
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, mime, 1.0));
                 folder.file(`Certificate_${name.replace(/[^a-zA-Z0-9]/g, "_")}.${ext}`, blob);
             }
 
-            status.innerText = "Compressing ZIP file...";
+            status.innerText = "Packing ZIP file...";
             bar.style.width = "100%";
 
-            // Generate ZIP file using STORE mode for instant speed
             const zipContent = await zip.generateAsync({
                 type: "blob",
                 compression: "STORE"
@@ -1108,7 +1134,6 @@
                 status.innerText = `Packing: ${Math.round(metadata.percent)}%`;
             });
 
-            // Native Browser Download Trigger
             const zipUrl = URL.createObjectURL(zipContent);
             const downloadLink = document.createElement('a');
             downloadLink.href = zipUrl;
@@ -1121,7 +1146,478 @@
 
             modal.classList.add('hidden');
             renderCanvas();
-            showToast("ZIP Downloaded!", "Your certificate batch archive has finished downloading.");
+            showToast("ZIP Downloaded!", "High-definition certificates downloaded.");
+        }
+
+        function resetWorkspace() {
+            document.getElementById('names-text-area').value = "";
+            updateNamesList();
+            useDemoDesign();
+        }
+
+        function toggleFaqAccordion(el) {
+            const content = el.querySelector('.faq-content');
+            const icon = el.querySelector('i');
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        }
+    </script><!-- JAVASCRIPT ENGINE (HIGH-DPI / LOSSLESS RESOLUTION FIX) -->
+    <script>
+        // State
+        let templateImage = new Image();
+        let names = [
+            "Alexander Bartholomew",
+            "Chidubem Okonkwo",
+            "Sarah Jenkins",
+            "Michael Chen"
+        ];
+        let currentIdx = 0;
+        let isDragging = false;
+        let autoFitEnabled = true;
+        let positionLocked = true;
+        let exportFormat = 'png'; // 'png', 'jpeg', 'webp'
+
+        let style = {
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 48,
+            color: '#000000',
+            fontWeight: 'bold',
+            align: 'center',
+            xPct: 50,
+            yPct: 50
+        };
+
+        let canvas, ctx;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            canvas = document.getElementById('cert-canvas');
+            ctx = canvas.getContext('2d');
+
+            setupDragAndDrop();
+            useDemoDesign();
+            updateAlignUI(style.align);
+            updateLockUI();
+        });
+
+        // Toast Notification Trigger
+        function showToast(title, message) {
+            const toast = document.getElementById('toast-notification');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-message').innerText = message;
+
+            toast.classList.remove('-translate-y-24', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('-translate-y-24', 'opacity-0');
+            }, 3000);
+        }
+
+        // Donate Modal Handlers
+        function openDonateModal() {
+            document.getElementById('donate-modal').classList.remove('hidden');
+        }
+
+        function closeDonateModal() {
+            document.getElementById('donate-modal').classList.add('hidden');
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        function toggleAutoFit(val) {
+            autoFitEnabled = val;
+            positionLocked = val;
+            updateLockUI();
+            renderCanvas();
+        }
+
+        function toggleSliderLock() {
+            positionLocked = !positionLocked;
+            if (positionLocked) {
+                autoFitEnabled = true;
+                document.getElementById('auto-fit-toggle').checked = true;
+            } else {
+                autoFitEnabled = false;
+                document.getElementById('auto-fit-toggle').checked = false;
+            }
+            updateLockUI();
+            renderCanvas();
+        }
+
+        function updateLockUI() {
+            const badge = document.getElementById('drag-status-badge');
+            const sub = document.getElementById('autofit-status-sub');
+            const lockIcon = document.getElementById('slider-lock-icon');
+            const lockText = document.getElementById('slider-lock-text');
+            const xSlider = document.getElementById('x-slider');
+            const ySlider = document.getElementById('y-slider');
+
+            if (positionLocked) {
+                badge.innerHTML = `<i class="fa-solid fa-lock text-amber-400 dark:text-amber-600"></i> Position Locked (Auto-Fit Active)`;
+                sub.innerText = "Auto-scales text size to keep names inside margins";
+                lockIcon.className = "fa-solid fa-lock text-amber-500";
+                lockText.innerText = "Locked";
+                xSlider.disabled = true;
+                ySlider.disabled = true;
+                xSlider.classList.add('opacity-50', 'cursor-not-allowed');
+                ySlider.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                badge.innerHTML = `<i class="fa-solid fa-hand-pointer text-emerald-400"></i> Manual Drag Enabled`;
+                sub.innerText = "Manual drag positioning unlocked";
+                lockIcon.className = "fa-solid fa-lock-open text-emerald-500";
+                lockText.innerText = "Unlocked";
+                xSlider.disabled = false;
+                ySlider.disabled = false;
+                xSlider.classList.remove('opacity-50', 'cursor-not-allowed');
+                ySlider.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function setExportFormat(fmt) {
+            exportFormat = fmt;
+            ['png', 'jpeg', 'webp'].forEach(f => {
+                const btn = document.getElementById(`fmt-${f}`);
+                if (f === fmt) {
+                    btn.className = "px-3 py-1 text-xs font-bold bg-black dark:bg-white text-white dark:text-black rounded transition";
+                } else {
+                    btn.className = "px-3 py-1 text-xs font-semibold text-neutral-500 hover:text-black dark:hover:text-white rounded transition";
+                }
+            });
+        }
+
+        async function handleCustomFontUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const fontName = 'CustomFont_' + Math.random().toString(36).substr(2, 6);
+            
+            try {
+                const buffer = await file.arrayBuffer();
+                const customFont = new FontFace(fontName, buffer);
+                await customFont.load();
+                document.fonts.add(customFont);
+
+                const select = document.getElementById('font-family-select');
+                const opt = document.createElement('option');
+                opt.value = fontName;
+                opt.innerText = `Uploaded: ${file.name}`;
+                opt.selected = true;
+                select.prepend(opt);
+
+                updateTextStyle('fontFamily', fontName);
+                showToast("Font Uploaded Successfully", `Custom font "${file.name}" ready to use.`);
+            } catch (err) {
+                console.error('Font load error:', err);
+                alert('Could not load font file. Please ensure it is a valid .ttf or .otf file.');
+            }
+        }
+
+        function useDemoDesign() {
+            const sample = document.createElement('canvas');
+            sample.width = 2400; // High-res master dimensions
+            sample.height = 1500;
+            const sCtx = sample.getContext('2d');
+
+            sCtx.fillStyle = '#ffffff';
+            sCtx.fillRect(0, 0, 2400, 1500);
+
+            sCtx.strokeStyle = '#000000';
+            sCtx.lineWidth = 12;
+            sCtx.strokeRect(60, 60, 2280, 1380);
+
+            sCtx.strokeStyle = '#94a3b8';
+            sCtx.lineWidth = 2;
+            sCtx.strokeRect(85, 85, 2230, 1330);
+
+            sCtx.fillStyle = '#000000';
+            sCtx.font = 'bold 54px "Playfair Display", serif';
+            sCtx.textAlign = 'center';
+            sCtx.fillText('CERTIFICATE OF ACHIEVEMENT', 1200, 300);
+
+            sCtx.fillStyle = '#64748b';
+            sCtx.font = '28px "Plus Jakarta Sans", sans-serif';
+            sCtx.fillText('THIS ACKNOWLEDGES THAT THE RECIPIENT HAS COMPLETED THE PROGRAM', 1200, 480);
+
+            templateImage.onload = () => { renderCanvas(); };
+            templateImage.src = sample.toDataURL('image/png');
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (templateImage.src && templateImage.src.startsWith('blob:')) {
+                URL.revokeObjectURL(templateImage.src);
+            }
+
+            const objectUrl = URL.createObjectURL(file);
+            templateImage.onload = () => { 
+                renderCanvas(); 
+                showToast("Design Uploaded Successfully!", "Taking you down to the studio workspace...");
+                
+                setTimeout(() => {
+                    document.getElementById('studio').scrollIntoView({ behavior: 'smooth' });
+                }, 200);
+            };
+            templateImage.src = objectUrl;
+            e.target.value = '';
+        }
+
+        function updateNamesList() {
+            const text = document.getElementById('names-text-area').value;
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            if (lines.length > 0) {
+                names = lines;
+            } else {
+                names = ["Sample Recipient Name"];
+            }
+
+            currentIdx = 0;
+            document.getElementById('name-count-pill').innerText = `${names.length} Name${names.length > 1 ? 's' : ''}`;
+            renderCanvas();
+        }
+
+        function handleCSVUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const text = event.target.result;
+                const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length > 0) {
+                    document.getElementById('names-text-area').value = lines.join('\n');
+                    updateNamesList();
+                    showToast("Roster Imported", `Parsed ${lines.length} candidate names.`);
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        }
+
+        function stepCandidate(direction) {
+            if (direction === -1 && currentIdx > 0) {
+                currentIdx--;
+            } else if (direction === 1 && currentIdx < names.length - 1) {
+                currentIdx++;
+            }
+            renderCanvas();
+        }
+
+        // ULTRA HIGH-DPI LOSSLESS RENDER ENGINE
+        function renderCanvas(overrideText = null) {
+            if (!templateImage.width) return;
+
+            // Preserve full natural template resolution
+            const masterW = templateImage.naturalWidth || templateImage.width;
+            const masterH = templateImage.naturalHeight || templateImage.height;
+
+            canvas.width = masterW;
+            canvas.height = masterH;
+
+            // Maximize Rendering Sharpness
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // Draw template design at 1:1 original crisp resolution
+            ctx.drawImage(templateImage, 0, 0, masterW, masterH);
+
+            const activeName = overrideText || names[currentIdx] || "Alexander Bartholomew";
+            const x = (style.xPct / 100) * masterW;
+            const y = (style.yPct / 100) * masterH;
+
+            // Scale Base Font Size relative to Master Canvas Resolution
+            const scaleFactor = masterW / 1200; // Baseline standard factor
+            let computedFontSize = style.fontSize * scaleFactor;
+
+            if (autoFitEnabled) {
+                const maxAvailableWidth = masterW * 0.82;
+                ctx.font = `${style.fontWeight} ${computedFontSize}px "${style.fontFamily}", sans-serif`;
+                let metrics = ctx.measureText(activeName);
+
+                while (metrics.width > maxAvailableWidth && computedFontSize > 16) {
+                    computedFontSize -= 2;
+                    ctx.font = `${style.fontWeight} ${computedFontSize}px "${style.fontFamily}", sans-serif`;
+                    metrics = ctx.measureText(activeName);
+                }
+            }
+
+            ctx.save();
+            ctx.font = `${style.fontWeight} ${computedFontSize}px "${style.fontFamily}", sans-serif`;
+            ctx.fillStyle = style.color;
+            ctx.textAlign = style.align;
+            ctx.textBaseline = 'middle';
+
+            ctx.fillText(activeName, x, y);
+
+            // Bounding box outline during edit mode (Hidden on download exports)
+            if (!overrideText) {
+                const metrics = ctx.measureText(activeName);
+                const w = metrics.width + (30 * scaleFactor);
+                const h = computedFontSize + (15 * scaleFactor);
+
+                let startX = x - w / 2;
+                if (style.align === 'left') startX = x - (15 * scaleFactor);
+                if (style.align === 'right') startX = x - w + (15 * scaleFactor);
+
+                ctx.strokeStyle = '#2563eb';
+                ctx.lineWidth = Math.max(2, 3 * scaleFactor);
+                ctx.setLineDash([8 * scaleFactor, 6 * scaleFactor]);
+                ctx.strokeRect(startX, y - h / 2, w, h);
+            }
+
+            ctx.restore();
+
+            document.getElementById('candidate-counter').innerText = `${currentIdx + 1} / ${names.length}`;
+        }
+
+        function updateTextStyle(param, val) {
+            style[param] = val;
+
+            if (param === 'fontSize') document.getElementById('size-indicator').innerText = `${val}px`;
+            if (param === 'color') {
+                document.getElementById('color-picker').value = val;
+                document.getElementById('color-hex-text').value = val;
+            }
+            if (param === 'xPct') document.getElementById('x-indicator').innerText = `${Math.round(val)}%`;
+            if (param === 'yPct') document.getElementById('y-indicator').innerText = `${Math.round(val)}%`;
+            if (param === 'align') updateAlignUI(val);
+
+            renderCanvas();
+        }
+
+        function updateAlignUI(activeAlign) {
+            ['left', 'center', 'right'].forEach(a => {
+                const btn = document.getElementById(`align-${a}-btn`);
+                if (btn) {
+                    if (a === activeAlign) {
+                        btn.className = "flex-1 py-1 text-center text-xs bg-black dark:bg-white text-white dark:text-black rounded font-bold transition shadow-sm";
+                    } else {
+                        btn.className = "flex-1 py-1 text-center text-xs text-neutral-500 hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded transition";
+                    }
+                }
+            });
+        }
+
+        function setupDragAndDrop() {
+            const handlePointer = (e) => {
+                if (positionLocked) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                const x = ((clientX - rect.left) / rect.width) * 100;
+                const y = ((clientY - rect.top) / rect.height) * 100;
+
+                if (x >= 0 && x <= 100 && y >= 0 && y <= 100) {
+                    style.xPct = x;
+                    style.yPct = y;
+
+                    document.getElementById('x-slider').value = Math.round(x);
+                    document.getElementById('y-slider').value = Math.round(y);
+                    document.getElementById('x-indicator').innerText = `${Math.round(x)}%`;
+                    document.getElementById('y-indicator').innerText = `${Math.round(y)}%`;
+
+                    renderCanvas();
+                }
+            };
+
+            canvas.addEventListener('mousedown', (e) => { isDragging = true; handlePointer(e); });
+            window.addEventListener('mousemove', (e) => { if (isDragging) handlePointer(e); });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+
+            canvas.addEventListener('touchstart', (e) => { isDragging = true; handlePointer(e); });
+            window.addEventListener('touchmove', (e) => { if (isDragging) handlePointer(e); });
+            window.addEventListener('touchend', () => { isDragging = false; });
+        }
+
+        function getMimeType() {
+            if (exportFormat === 'jpeg') return 'image/jpeg';
+            if (exportFormat === 'webp') return 'image/webp';
+            return 'image/png';
+        }
+
+        function downloadSinglePNG() {
+            const name = names[currentIdx] || 'Sample';
+            const ext = exportFormat;
+            
+            // Clean render without dashed boundary box
+            renderCanvas(name);
+
+            const mime = getMimeType();
+            
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = `Certificate_${name.replace(/\s+/g, '_')}.${ext}`;
+                link.href = url;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+                
+                renderCanvas(); // Restore edit outline
+            }, mime, 1.0); // 1.0 Maximum Quality Ratio
+        }
+
+        // ULTRA-FAST & LOSSLESS HIGH-DPI ZIP EXPORTER
+        async function exportZipArchive() {
+            if (names.length === 0) return;
+
+            const modal = document.getElementById('progress-modal');
+            const status = document.getElementById('progress-text');
+            const bar = document.getElementById('progress-fill');
+
+            modal.classList.remove('hidden');
+
+            const zip = new JSZip();
+            const folder = zip.folder("Certificates");
+            const ext = exportFormat;
+            const mime = getMimeType();
+
+            for (let i = 0; i < names.length; i++) {
+                const name = names[i];
+                status.innerText = `Rendering HD ${i + 1} of ${names.length}: ${name}`;
+                bar.style.width = `${Math.round(((i + 1) / names.length) * 100)}%`;
+
+                await new Promise(r => setTimeout(r, 10));
+
+                // Lossless draw pass
+                renderCanvas(name);
+
+                // Convert to full 1.0 quality blob
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, mime, 1.0));
+                folder.file(`Certificate_${name.replace(/[^a-zA-Z0-9]/g, "_")}.${ext}`, blob);
+            }
+
+            status.innerText = "Packing ZIP file...";
+            bar.style.width = "100%";
+
+            const zipContent = await zip.generateAsync({
+                type: "blob",
+                compression: "STORE"
+            }, function updateCallback(metadata) {
+                status.innerText = `Packing: ${Math.round(metadata.percent)}%`;
+            });
+
+            const zipUrl = URL.createObjectURL(zipContent);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = zipUrl;
+            downloadLink.download = `CertAI_Certificates.zip`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+
+            setTimeout(() => URL.revokeObjectURL(zipUrl), 5000);
+
+            modal.classList.add('hidden');
+            renderCanvas();
+            showToast("ZIP Downloaded!", "High-definition certificates downloaded.");
         }
 
         function resetWorkspace() {
